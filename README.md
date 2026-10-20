@@ -1,0 +1,12 @@
+# Proyecto Pruebas Automatizadas de Urban Routes
+- Automatización de las pruebas para realizar el proceso completo de solicitar un taxi en la plataforma
+- Tecnologías utilizadas: Selenium | Pytest | Python 
+- Técnicas empleadas: WebDriverWait |  expected_conditions | Búsquedas con By | POM | Definición de métodos de clase
+- Pasos para ejecutar el código:
+  - Crear el entorno virtual
+  - Instalar Selenium utilizando la terminal pip install selenium
+  - Instalar Pytest utilizando la terminal pip install pytest
+  - Ejecutar las pruebas desde PyCharm utilizando el botón Play
+- Si al intentar instalar con pip no funciona, intenta instalarlos de la siguiente manera:
+  - pip3 install selenium 
+  - pip3 install pytest
