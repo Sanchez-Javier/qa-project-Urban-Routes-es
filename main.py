@@ -1,9 +1,9 @@
 import data
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
-
 
 # no modificar
 def retrieve_phone_code(driver) -> str:
@@ -51,10 +51,14 @@ class UrbanRoutesPage:
     out_place = (By.CLASS_NAME,'plc')
     btn_close = (By.XPATH, "//div[@class='head'][text() = 'Método de pago']/..//button[@class='close-button section-close']")
     message = (By.ID,'comment')
-    blanket_and_handkerchiefs = (By.XPATH, "//div[@class='r-sw-label'][text() = 'Manta y pañuelos']/..//span[@class='slider round']")
+    blanket_and_handkerchiefs = (By.XPATH,"//div[@class='r-sw-label'][text() = 'Manta y pañuelos']/..//span[@class='slider round']")
+    blanket_and_handkerchiefs_is_active = (By.XPATH, "//div[@class='r-sw-label'][text() = 'Manta y pañuelos']/following-sibling::div[@class='r-sw']//input[@class='switch-input']")
     icecream_chocolate = (By.XPATH, "//div[@class='r-counter-label'][text() = 'Chocolate']/..//div[@class='counter-plus']")
+    icecream_counts = (By.XPATH, "//div[@class='r-counter-label'][text() = 'Chocolate']/..//div[@class='counter-value']")
     request_taxi = (By.CLASS_NAME,'smart-button')
+    search_car = (By.CLASS_NAME,'order-header-title')
     driver_modal = (By.CLASS_NAME,'order-number')
+    wait_car = (By.CLASS_NAME,'order-header-title')
 
     def __init__(self, driver):
         self.driver = driver
@@ -84,13 +88,16 @@ class UrbanRoutesPage:
         self.driver.find_element(*self.tarif_comfort).click()
 
     def get_tarif(self):
-        return self.driver.find_element(*self.tarif_comfort).find_element(By.XPATH,"..").get_attribute("class")
+        return self.driver.find_element(*self.tarif_comfort).text
 
     def click_phone(self):
         self.driver.find_element(*self.phone_button).click()
 
     def set_phone(self, phone):
         self.driver.find_element(*self.phone_field).send_keys(phone)
+
+    def get_phone(self):
+        return self.driver.find_element(*self.phone_field).get_attribute('value')
 
     def set_code(self,code):
         self.driver.find_element(*self.code_field).send_keys(code)
@@ -113,6 +120,12 @@ class UrbanRoutesPage:
     def set_code_card_number(self, code):
         self.driver.find_element(*self.code_card_number_field).send_keys(code)
 
+    def get_card_number(self):
+        return self.driver.find_element(*self.card_number_field).get_attribute('value')
+
+    def get_code_card_number(self):
+        return self.driver.find_element(*self.code_card_number_field).get_attribute('value')
+
     def click_out_place(self):
         self.driver.find_element(*self.out_place).click()
 
@@ -126,8 +139,14 @@ class UrbanRoutesPage:
     def set_message(self, message):
         self.driver.find_element(*self.message).send_keys(message)
 
+    def get_message(self):
+        return self.driver.find_element(*self.message).get_attribute('value')
+
     def active_blanket_and_handkerchiefs(self):
         self.driver.find_element(*self.blanket_and_handkerchiefs).click()
+
+    def is_active_blanket_and_handkerchiefs(self):
+        return self.driver.find_element(*self.blanket_and_handkerchiefs_is_active).is_selected()
 
     def add_icecream_chocolate(self,cantidad):
         if(cantidad>0):
@@ -136,80 +155,217 @@ class UrbanRoutesPage:
         else:
             print('Por favor ingresa al menos un número del 1 al infinito')
 
+    def count_icecream(self):
+        return int(self.driver.find_element(*self.icecream_counts).text)
+
     def request_one_taxi(self):
         self.driver.find_element(*self.request_taxi).click()
 
+    def get_search_car(self):
+        return self.driver.find_element(*self.search_car).text
+
     def wait_driver_modal(self):
-        WebDriverWait(self.driver, 20).until(EC.visibility_of_element_located(self.driver_modal))
+        WebDriverWait(self.driver, 45).until(EC.visibility_of_element_located(self.driver_modal))
+
+    def get_car_model(self):
+        return self.driver.find_element(*self.wait_car).text
 
 class TestUrbanRoutes:
 
     driver = None
 
-    @classmethod
-    def setup_class(cls):
-        # no lo modifiques, ya que necesitamos un registro adicional habilitado para recuperar el código de confirmación del teléfono
-        from selenium.webdriver import DesiredCapabilities
-        capabilities = webdriver.ChromeOptions()
-        capabilities.set_capability("goog:loggingPrefs", {"performance": "ALL"})
-        cls.driver = webdriver.Chrome(options=capabilities)
+    def setup_method(self):
+        options = Options()
+        options.set_capability(
+            "goog:loggingPrefs",
+            {"performance": "ALL"}
+        )
+        self.driver = webdriver.Chrome(options=options)
+        self.driver.get(data.urban_routes_url)
+        self.routes_page = UrbanRoutesPage(self.driver)
 
     def test_set_route(self):
-        self.driver.get(data.urban_routes_url)
-        routes_page = UrbanRoutesPage(self.driver)
-
         #Agregando datos a las variables
         address_from = data.address_from
         address_to = data.address_to
-        number_phone = data.phone_number
-        comment = data.message_for_driver
 
         #Ejecutando proceso para ingresar datos en los campos desde y hasta
-        routes_page.set_route(address_from, address_to)
-
-        #Ejecuta pedir un Taxi
-        routes_page.order_transport()
-
-        #Elije la tarifa del Taxi
-        routes_page.choose_tarif()
-
-        #Abre el modal de ingresar telefono y coloca el código de confirmación.
-        routes_page.click_phone()
-        routes_page.set_phone(number_phone)
-        routes_page.btn_next()
-        code = retrieve_phone_code(self.driver)
-        routes_page.set_code(code)
-        routes_page.confirm_phone()
-
-        #Abre el modal de ingresar el metodo de pago y lo cierra.
-        routes_page.click_mtd_pay_button()
-        routes_page.click_add_card_button()
-        routes_page.set_card_number(data.card_number)
-        routes_page.set_code_card_number(data.card_code)
-        routes_page.click_add_card()
-        routes_page.close_popup()
-
-        #Escribiendo un mensaje para el conductor
-        routes_page.set_message(comment)
-
-        #Poner manta y pañuelos
-        routes_page.active_blanket_and_handkerchiefs()
-
-        #Agregar helado de chocolate
-        routes_page.add_icecream_chocolate(2)
-
-        #Solicitar el taxi
-        routes_page.request_one_taxi()
-
-        #Esperando datos del conductor
-        routes_page.wait_driver_modal()
+        self.routes_page.set_route(address_from, address_to)
 
         #Prubas
-        assert routes_page.get_from() == address_from
-        assert routes_page.get_to() == address_to
-        assert routes_page.get_tarif() == "tcard active"
+        assert self.routes_page.get_from() == address_from
+        assert self.routes_page.get_to() == address_to
 
+    def add_adress(self):
+        # Agrega las Direcciones
+        address_from = data.address_from
+        address_to = data.address_to
+        self.routes_page.set_route(address_from, address_to)
+        #Ejecuta pedir un Taxi
+        self.routes_page.order_transport()
 
-    @classmethod
-    def teardown_class(cls):
-        cls.driver.quit()
+    def test_select_comfort(self):
+        #Agrega las Direcciones
+        self.add_adress()
+
+        # Elije la tarifa del Taxi
+        self.routes_page.choose_tarif()
+
+        assert self.routes_page.get_tarif() == "Comfort"
+
+    def test_add_phone(self):
+        # Agrega las Direcciones
+        self.add_adress()
+
+        # Abre el modal de ingresar telefono y coloca el código de confirmación.
+        number_phone = data.phone_number
+        self.routes_page.click_phone()
+        self.routes_page.set_phone(number_phone)
+        self.routes_page.btn_next()
+        code = retrieve_phone_code(self.driver)
+        self.routes_page.set_code(code)
+        self.routes_page.confirm_phone()
+
+        assert self.routes_page.get_phone() == number_phone
+
+    def test_add_card(self):
+        # Agrega las Direcciones
+        self.add_adress()
+
+        # Abre el modal de ingresar el metodo de pago y lo cierra.
+        number_card = data.card_number
+        code_card = data.card_code
+        self.routes_page.click_mtd_pay_button()
+        self.routes_page.click_add_card_button()
+        self.routes_page.set_card_number(number_card)
+        self.routes_page.set_code_card_number(code_card)
+        self.routes_page.click_add_card()
+        self.routes_page.close_popup()
+
+        assert self.routes_page.get_card_number() == number_card
+        assert self.routes_page.get_code_card_number() == code_card
+
+    def test_message_driver(self):
+        # Agrega las Direcciones
+        self.add_adress()
+
+        # Escribiendo un mensaje para el conductor
+        comment = data.message_for_driver
+        self.routes_page.set_message(comment)
+
+        assert self.routes_page.get_message() == comment
+
+    def test_blanket(self):
+        # Agrega las Direcciones
+        self.add_adress()
+
+        # Elije la tarifa del Taxi
+        self.routes_page.choose_tarif()
+
+        # Poner manta y pañuelos
+        self.routes_page.active_blanket_and_handkerchiefs()
+
+        assert self.routes_page.is_active_blanket_and_handkerchiefs() == True
+
+    def test_ice_cream(self):
+        # Agrega las Direcciones
+        self.add_adress()
+
+        # Elije la tarifa del Taxi
+        self.routes_page.choose_tarif()
+
+        # Agregar helado de chocolate
+        cantidad_helados = 2
+        self.routes_page.add_icecream_chocolate(cantidad_helados)
+
+        assert self.routes_page.count_icecream() == cantidad_helados
+
+    def test_search_taxi(self):
+        # Agrega las Direcciones
+        self.add_adress()
+
+        # Elije la tarifa del Taxi
+        self.routes_page.choose_tarif()
+
+        # Abre el modal de ingresar telefono y coloca el código de confirmación.
+        number_phone = data.phone_number
+        self.routes_page.click_phone()
+        self.routes_page.set_phone(number_phone)
+        self.routes_page.btn_next()
+        code = retrieve_phone_code(self.driver)
+        self.routes_page.set_code(code)
+        self.routes_page.confirm_phone()
+
+        # Abre el modal de ingresar el metodo de pago y lo cierra.
+        number_card = data.card_number
+        code_card = data.card_code
+        self.routes_page.click_mtd_pay_button()
+        self.routes_page.click_add_card_button()
+        self.routes_page.set_card_number(number_card)
+        self.routes_page.set_code_card_number(code_card)
+        self.routes_page.click_add_card()
+        self.routes_page.close_popup()
+
+        # Escribiendo un mensaje para el conductor
+        comment = data.message_for_driver
+        self.routes_page.set_message(comment)
+
+        # Poner manta y pañuelos
+        self.routes_page.active_blanket_and_handkerchiefs()
+
+        # Agregar helado de chocolate
+        cantidad_helados = 2
+        self.routes_page.add_icecream_chocolate(cantidad_helados)
+
+        # Solicitar el taxi
+        self.routes_page.request_one_taxi()
+
+        assert self.routes_page.get_search_car() == "Buscar automóvil"
+
+    def test_driver_info(self):
+        # Agrega las Direcciones
+        self.add_adress()
+
+        # Elije la tarifa del Taxi
+        self.routes_page.choose_tarif()
+
+        # Abre el modal de ingresar telefono y coloca el código de confirmación.
+        number_phone = data.phone_number
+        self.routes_page.click_phone()
+        self.routes_page.set_phone(number_phone)
+        self.routes_page.btn_next()
+        code = retrieve_phone_code(self.driver)
+        self.routes_page.set_code(code)
+        self.routes_page.confirm_phone()
+
+        # Abre el modal de ingresar el metodo de pago y lo cierra.
+        number_card = data.card_number
+        code_card = data.card_code
+        self.routes_page.click_mtd_pay_button()
+        self.routes_page.click_add_card_button()
+        self.routes_page.set_card_number(number_card)
+        self.routes_page.set_code_card_number(code_card)
+        self.routes_page.click_add_card()
+        self.routes_page.close_popup()
+
+        # Escribiendo un mensaje para el conductor
+        comment = data.message_for_driver
+        self.routes_page.set_message(comment)
+
+        # Poner manta y pañuelos
+        self.routes_page.active_blanket_and_handkerchiefs()
+
+        # Agregar helado de chocolate
+        cantidad_helados = 2
+        self.routes_page.add_icecream_chocolate(cantidad_helados)
+
+        # Solicitar el taxi
+        self.routes_page.request_one_taxi()
+
+        # Esperando datos del conductor
+        self.routes_page.wait_driver_modal()
+
+        assert "El conductor llegará" in self.routes_page.get_car_model()
+
+    def teardown_method(self):
+        self.driver.quit()
